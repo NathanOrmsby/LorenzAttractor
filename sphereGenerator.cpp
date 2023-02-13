@@ -5,13 +5,16 @@
  *      Author: norms
  */
 
+// LINUX
+#include "../headers/sphereGenerator.h"
+// WINDOWS
+//#include "..\headers\sphereGenerator.h"
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <vector>
 #include <math.h>
-
-#include "..\headers\sphereGenerator.h"
 
 
 void writeSphereToFile(int numPoints, double radius)

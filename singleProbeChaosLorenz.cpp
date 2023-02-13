@@ -6,10 +6,17 @@
  */
 
 
-#include "..\headers\singleProbeChaosLorenz.h"
-#include "..\headers\ProbeAndPoint.h"
-#include "..\headers\sphereGenerator.h"
-#include "..\headers\vector3.h"
+// LINUX
+#include "../headers/singleProbeChaosLorenz.h"
+#include "../headers/ProbeAndPoint.h"
+#include "../headers/sphereGenerator.h"
+#include "../headers/vector3.h"
+
+// WINDOWS
+//#include "..\headers\singleProbeChaosLorenz.h"
+//#include "..\headers\ProbeAndPoint.h"
+//#include "..\headers\sphereGenerator.h"
+//#include "..\headers\vector3.h"
 
 #include <math.h>
 #include <iostream>
@@ -24,9 +31,14 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 	// Initialize perturbed probes
 	initializePerturbations(&probe, NUMPERTURBED);
 
-
+	// Calculating h2
 	// Initialize two orthonormal vectors: Memory is already allocated and probe position copied
 	probe.perturbed[NUMPERTURBED].pos.x += 1.0; probe.perturbed[NUMPERTURBED + 1].pos.y += 1.0;
+
+	// Calculating h3
+	// Initialize three orthonormal vectors: Memory is already allocated and probe position copied
+	probe.perturbed[NUMPERTURBED + 2].pos.x += 1.0; probe.perturbed[NUMPERTURBED + 3].pos.y += 1.0; probe.perturbed[NUMPERTURBED + 4].pos.z += 1.0;
+
 
 //	std::cout << "Orthonormal vectors initial" << std::endl;
 //
@@ -44,14 +56,18 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 	// Sum of log of relative separation every timestep for each perturbation: ORBITAL SEPARATION METHOD FOR CALCULATING LYAPUNOVS
 	// Max lyapunov will be extracted from this at the end
 	double *LfSums = (double *)malloc(NUMPERTURBED * sizeof(double)); for (int i = 0; i < NUMPERTURBED; ++i) { LfSums[i] = 0; }
-	// Min lyapunov will be extracted from this at the end
+	// h2 lyapunov will be extracted from this at the end
 	double areaSum = 0;
 	double initialArea = RADIUS * RADIUS;
+	// h3 lyapunov will be extracted from this
+	double volumeSum = 0;
+	double initialVolume = RADIUS * RADIUS * RADIUS;
 
 	// Store data: Store all data of probe and perturbations every ITERATIONS step: Useful for plotting
 	int n = ((totalSteps + ITERATIONS - 1) / ITERATIONS) + 1;
 	vector3 **data = (vector3 **)malloc(n * sizeof(vector3 *));
-	for (int i = 0; i < n; ++i) { data[i] = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3)); }
+	// 0: probe, 1 - NUMPERTURBED + 1: perturbations, NUMPERTURBED + 1 - NUMPERTURBED + 5: h2 and h3
+	for (int i = 0; i < n; ++i) { data[i] = (vector3 *)malloc((1 + NUMPERTURBED + 5) * sizeof(vector3)); }
 
 	// Loop
 	int c = 0;
@@ -62,7 +78,7 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 		if (c % ITERATIONS == 0)
 		{
 			data[dc][0] = {probe.pos.x, probe.pos.y, probe.pos.z};
-			for (int i = 1; i < NUMPERTURBED + 3; ++i)
+			for (int i = 1; i < NUMPERTURBED + 6; ++i)
 			{
 				data[dc][i] = {probe.perturbed[i - 1].pos.x, probe.perturbed[i - 1].pos.y, probe.perturbed[i - 1].pos.z};
 			}
@@ -71,8 +87,8 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 		// Numerical Integrator: RK4
 		probeRK4(&probe, NUMPERTURBED, dt);
 
-		// Function for LfSums, Gram Schmidt, and Renormalization
-		lyapunovChaosStuffSingle(probe, NUMPERTURBED, RADIUS, LfSums, &areaSum, initialArea);
+		// Function for LfSums, Gram Schmidt2, Gram Schmidt3, and Renormalization of everything
+		lyapunovChaosStuffSingle(probe, NUMPERTURBED, RADIUS, LfSums, &areaSum, initialArea, &volumeSum, initialVolume);
 		c++;
 	}
 
@@ -147,10 +163,10 @@ void extractLyapunovSingle(double *LfSums, double areaSum, int NUMPERTURBED, dou
 }
 
 // Handles the timestep processes for calculating min and max lyapunov exponents: Might be broken
-void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double *areaSum, double initialArea)
+void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double *areaSum, double initialArea, double *volumeSum, double initialVolume)
 {
 	// Max lyapunov
-	double maxMag = mag((vector3){probe.perturbed[0].pos.x - probe.pos.x, probe.perturbed[0].pos.y - probe.pos.y, probe.perturbed[0].pos.z - probe.pos.z});
+//	double maxMag = mag((vector3){probe.perturbed[0].pos.x - probe.pos.x, probe.perturbed[0].pos.y - probe.pos.y, probe.perturbed[0].pos.z - probe.pos.z});
 	for (int i = 0; i < NUMPERTURBED; ++i)
 	{
 		// Calculate Lf of each perturbation, and renormalize the position vector
@@ -175,7 +191,7 @@ void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, doub
 //	std::cout << "Distance is: " << maxMag << std::endl;
 //	std::cout << "log distance is: " << log(maxMag) << std::endl;
 
-	// Min lyapunov
+	// h2 Lyapunov
 	vector3 v1 = {probe.perturbed[NUMPERTURBED].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED].pos.z - probe.pos.z};
 	vector3 v2 = {probe.perturbed[NUMPERTURBED + 1].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED + 1].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED + 1].pos.z - probe.pos.z};
 	double magv1 = mag(v1); double magv2 = mag(v2); double a = angle(v1, v2);
@@ -193,8 +209,11 @@ void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, doub
 	// RADIUS > 1
 	// areaSums += log(magv1 * magv2 * sin(a) / RADIUS);
 
-	// Reorthonormalize vectors
-	gramSchmidtRenormalizationSingle(&probe, NUMPERTURBED, v1, v2, magv1, magv2);
+	// Reorthonormalize h2 vectors
+	gramSchmidtRenormalizationh2Single(&probe, NUMPERTURBED, v1, v2, magv1, magv2);
+
+	//h3 lyapunov and renormalization TODO: IMPLEMENT THIS FUNCTION
+	gramSchmidtRenormalizationh3Single(&probe, NUMPERTURBED);
 }
 
 // Gram schmidt Renormalization for single probe: Renormalizes vectors into two orthogonal unit vectors that preserve direction
@@ -228,10 +247,10 @@ void probeRK4(Probe *probe, int NUMPERTURBED, double dt)
 	// Initialize Object arrays
 	Probe k2Probe, k3Probe, k4Probe;
 	// Initialize k's: Index 0 is for probe, last two are for gram schmidt vectors
-	vector3 *k1 = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3)); vector3 *k2 = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3)); vector3 *k3 = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3)); vector3 *k4 = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3)); vector3 *weightedK = (vector3 *)malloc((3 + NUMPERTURBED) * sizeof(vector3));
+	vector3 *k1 = (vector3 *)malloc((6 + NUMPERTURBED) * sizeof(vector3)); vector3 *k2 = (vector3 *)malloc((6 + NUMPERTURBED) * sizeof(vector3)); vector3 *k3 = (vector3 *)malloc((6 + NUMPERTURBED) * sizeof(vector3)); vector3 *k4 = (vector3 *)malloc((6 + NUMPERTURBED) * sizeof(vector3)); vector3 *weightedK = (vector3 *)malloc((6 + NUMPERTURBED) * sizeof(vector3));
 	// Copy data into probeCopies and their perturbations for all k
-	copyProbe(&k2Probe, *probe); copyProbe(&k3Probe, *probe); copyProbe(&k4Probe, *probe); k2Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 2) * sizeof(Probe)); k3Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 2) * sizeof(Probe)); k4Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 2) * sizeof(Probe));
-	for (int i = 0; i < NUMPERTURBED + 2; ++i) { copyProbe(&k2Probe.perturbed[i], probe->perturbed[i]); copyProbe(&k3Probe.perturbed[i], probe->perturbed[i]); copyProbe(&k4Probe.perturbed[i], probe->perturbed[i]); }
+	copyProbe(&k2Probe, *probe); copyProbe(&k3Probe, *probe); copyProbe(&k4Probe, *probe); k2Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 5) * sizeof(Probe)); k3Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 5) * sizeof(Probe)); k4Probe.perturbed = (Probe *)malloc((NUMPERTURBED + 5) * sizeof(Probe));
+	for (int i = 0; i < NUMPERTURBED + 5; ++i) { copyProbe(&k2Probe.perturbed[i], probe->perturbed[i]); copyProbe(&k3Probe.perturbed[i], probe->perturbed[i]); copyProbe(&k4Probe.perturbed[i], probe->perturbed[i]); }
 
 	// k1 step
 	// Extract k1 and put in arrays
@@ -254,7 +273,7 @@ void probeRK4(Probe *probe, int NUMPERTURBED, double dt)
 
 	//rk4 step
 	// Fill up weighted k's
-	for (int i = 0; i < NUMPERTURBED + 3; ++i)
+	for (int i = 0; i < NUMPERTURBED + 6; ++i)
 	{
 		weightedK[i] = {k1[i].x + 2 * k2[i].x + 2 * k3[i].x + k4[i].x, k1[i].y + 2 * k2[i].y + 2 * k3[i].y + k4[i].y, k1[i].z + 2 * k2[i].z + 2 * k3[i].z + k4[i].z};
 	}
@@ -264,18 +283,18 @@ void probeRK4(Probe *probe, int NUMPERTURBED, double dt)
 	free(k1); free(k2); free(k3); free(k4); free(weightedK);
 }
 
-// Single step for RK4: single probecopy with perturbations and two orthogonals
+// Single step for RK4: single probecopy with perturbations and two orthogonals: h2, and three orthogonals: h3
 void probeRK4Step(Probe *probeCopy, int NUMPERTURBED, vector3 *k, double dt)
 {
 	// probe
 	probeCopy->pos.x += k[0].x * dt; probeCopy->pos.y += k[0].y * dt; probeCopy->pos.z += k[0].z * dt;
 	// Perturbations and gram schmidts
-	for (int i = 1; i < NUMPERTURBED + 3; ++i)
+	for (int i = 1; i < NUMPERTURBED + 6; ++i)
 	{
 		probeCopy->perturbed[i - 1].pos.x += k[i].x * dt; probeCopy->perturbed[i - 1].pos.y += k[i].y * dt; probeCopy->perturbed[i - 1].pos.z += k[i].z * dt;
 	}
 }
-// Stores lorenz change on x, y, z using lorenz equations: Uses Lorenz attract initial conditions for single probe and its perturbations
+// Stores lorenz change on x, y, z using lorenz equations: Uses Lorenz attract initial conditions for single probe and its perturbations: h2 and h3 probes too
 void extractLorenzKProbe(Probe probe, int NUMPERTURBED, vector3 *k)
 {
 	// Defined to use Lorenz Attractor constants
@@ -286,7 +305,7 @@ void extractLorenzKProbe(Probe probe, int NUMPERTURBED, vector3 *k)
 	// Probe
 	k[0] = {SIGMA * (probe.pos.y - probe.pos.x), probe.pos.x * (ROW - probe.pos.z) - probe.pos.y, (probe.pos.x * probe.pos.y) - (BETA * probe.pos.z)};
 	// Perturbations and orthogonals
-	for (int i = 1; i < NUMPERTURBED + 3; ++i)
+	for (int i = 1; i < NUMPERTURBED + 6; ++i)
 	{
 		k[i] = {SIGMA * (probe.perturbed[i - 1].pos.y - probe.perturbed[i - 1].pos.x), probe.perturbed[i - 1].pos.x * (ROW - probe.perturbed[i - 1].pos.z) - probe.perturbed[i - 1].pos.y, (probe.perturbed[i - 1].pos.x * probe.perturbed[i - 1].pos.y) - (BETA * probe.perturbed[i - 1].pos.z)};
 	}
@@ -295,9 +314,9 @@ void extractLorenzKProbe(Probe probe, int NUMPERTURBED, vector3 *k)
 // Initializes the sphere of probes around the probe object, which will then progress into an ellipsoid. Reads from file
 void initializePerturbations(Probe *p, int NUMPOINTS)
 {
-	// Initialize all perturbation probes: Last two are for min lyapunov
-	p->perturbed = (Probe *)malloc((NUMPOINTS + 2) * sizeof(Probe));
-	for (int i = 0; i < NUMPOINTS + 2; ++i) { copyProbe(&p->perturbed[i], *p); }
+	// Initialize all perturbation probes: Last five: 0,1 are for h2 lyapunov: 2,3,4 are for h3 lyapunov
+	p->perturbed = (Probe *)malloc((NUMPOINTS + 5) * sizeof(Probe));
+	for (int i = 0; i < NUMPOINTS + 5; ++i) { copyProbe(&p->perturbed[i], *p); }
 
 	// Read from file
 	// Desktop path

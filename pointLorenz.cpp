@@ -5,10 +5,17 @@
  *      Author: norms
  */
 
-#include "..\headers\pointLorenz.h"
-#include "..\headers\ProbeAndPoint.h"
-#include "..\headers\sphereGenerator.h"
-#include "..\headers\vector3.h"
+// LINUX
+#include "../headers/pointLorenz.h"
+#include "../headers/ProbeAndPoint.h"
+#include "../headers/sphereGenerator.h"
+#include "../headers/vector3.h"
+
+// WINDOWS
+//#include "..\headers\pointLorenz.h"
+//#include "..\headers\ProbeAndPoint.h"
+//#include "..\headers\sphereGenerator.h"
+//#include "..\headers\vector3.h"
 
 #include <iostream>
 #include <fstream>

@@ -6,8 +6,13 @@
  */
 
 
-#include "..\headers\ProbeAndPoint.h"
-#include "..\headers\vector3.h"
+// LINUX
+#include "../headers/ProbeAndPoint.h"
+#include "../headers/vector3.h"
+
+// WINDOWS
+// #include "..\headers\ProbeAndPoint.h"
+// #include "..\headers\vector3.h"
 
 // Utility functions for probes and points
 

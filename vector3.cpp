@@ -5,7 +5,12 @@
  *      Author: norms
  */
 
-#include "..\headers\vector3.h"
+// LINUX
+#include "../headers/vector3.h"
+
+// WINDOWS
+//#include "..\headers\vector3.h"
+
 #include "math.h"
 
 double dotProd(vector3 v1, vector3 v2)
