@@ -21,7 +21,7 @@ void extractLorenzKProbe(Probe probe, int NUMPERTURBED, vector3 *k);
 // Single step for RK4: single probe with perturbations and two orthogonals
 void probeRK4Step(Probe *probe, int NUMPERTURBED, vector3 *k, double dt);
 // Handles the timestep processes for calculating max and min lyapunov exponents
-void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double areaSum, double initialArea);
+void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double *areaSum, double initialArea);
 // Gram schmidt Renormalization for single probe: Renormalizes vectors into two orthogonal unit vectors that preserve direction
 void gramSchmidtRenormalizationSingle(Probe *probe, int NUMPERTURBED, vector3 v1, vector3 v2, double magv1, double magv2);
 // Extracts minimum and maximum lyapunov for single probe with perturbations

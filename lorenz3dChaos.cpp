@@ -19,10 +19,10 @@ int main()
 {
 	// Timestep
 	double dt = 0.01;
-	int totalSteps = 900;
+	int totalSteps = 10000;
 
 	// Data storage
-	int ITERATIONS = 1;
+	int ITERATIONS = 2;
 
 	// Probe Lorenz Main function
 	// Initialize Probe
@@ -37,15 +37,15 @@ int main()
 
 	// Point Lorenz Main function
 	// Initialize points
-	int pointNum = 1;
-	Point *points = (Point *)malloc(pointNum * sizeof(Point));
-	points[0].pos = {0.01, 0, 0};
+//	int pointNum = 3;
+//	Point *points = (Point *)malloc(pointNum * sizeof(Point));
+//	points[0].pos = {0.01, 0, 0};
 //	points[1].pos = {1.0, 0, 0};
-//	points[2].pos = {1.5, 0, 1};
-
-	// Run the stuff
-	pointLorenz(points, pointNum, dt, totalSteps, ITERATIONS);
-	std::cout << "done" << std::endl;
+//	points[2].pos = {-1.0, 0, 0};
+//
+//	// Run the stuff
+//	pointLorenz(points, pointNum, dt, totalSteps, ITERATIONS);
+//	std::cout << "done" << std::endl;
 	return 0;
 
 }

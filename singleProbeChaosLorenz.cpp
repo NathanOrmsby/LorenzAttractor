@@ -28,6 +28,14 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 	// Initialize two orthonormal vectors: Memory is already allocated and probe position copied
 	probe.perturbed[NUMPERTURBED].pos.x += 1.0; probe.perturbed[NUMPERTURBED + 1].pos.y += 1.0;
 
+//	std::cout << "Orthonormal vectors initial" << std::endl;
+//
+//	vector3 uv1 = {probe.perturbed[NUMPERTURBED].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED].pos.z - probe.pos.z};
+//	vector3 uv2 = {probe.perturbed[NUMPERTURBED + 1].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED + 1].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED + 1].pos.z - probe.pos.z};
+//	std::cout << "uv1: " << uv1.x << " , " << uv1.y << " , " << uv1.z << std::endl;
+//	std::cout << "uv2: " << uv2.x << " , " << uv2.y << " , " << uv2.z << std::endl;
+//	std::cout << "Initial angle between vectors: " << angle(uv1, uv2) << std::endl;
+
 	// TODO: Will work on three orthonormal vectors for calculating third lyapunov later:
 
 	// Storage for min and max lyapunov exponents
@@ -64,7 +72,7 @@ double *singleProbeChaosLorenz(Probe probe, double dt, int totalSteps, int ITERA
 		probeRK4(&probe, NUMPERTURBED, dt);
 
 		// Function for LfSums, Gram Schmidt, and Renormalization
-		lyapunovChaosStuffSingle(probe, NUMPERTURBED, RADIUS, LfSums, areaSum, initialArea);
+		lyapunovChaosStuffSingle(probe, NUMPERTURBED, RADIUS, LfSums, &areaSum, initialArea);
 		c++;
 	}
 
@@ -95,6 +103,13 @@ void perturbationsToFile(vector3 **data, int dataLen, int NUMPERTURBED)
 	std::ofstream file1; std::ofstream file2; std::ofstream file3;
 	file1.open(fpath + f1); file2.open(fpath + f2); file3.open(fpath + f3);
 
+	file1 << "x,y,z" << std::endl;
+	file3 << "v1x, v1y, v1z, v2x, v2y, v2z" << std::endl;
+	for (int i = 0; i < NUMPERTURBED; ++i)
+	{
+		file2 << "x" + std::to_string(i) << "," << "y" + std::to_string(i) << "," << "z" + std::to_string(i) << ",";
+	}
+	file2 << std::endl;
 	for (int i = 0; i < dataLen; ++i)
 	{
 		// Probe
@@ -118,39 +133,68 @@ void extractLyapunovSingle(double *LfSums, double areaSum, int NUMPERTURBED, dou
 	// Calculate and store max lyapunov
 	double max = LfSums[0];
 	for (int i = 1; i < NUMPERTURBED; ++i) { if (LfSums[i] > max) { max = LfSums[i]; } }
+
+//	std::cout << std::endl << "Extracting lyapunov results" << std::endl;
+//	std::cout << "Total time is: " << t << std::endl;
+//	std::cout << "max LfSum is: " << max;
 	lyapunovs[1] = max / t;
+//	std::cout << "Max lyapunov exponent is: " << max / t << std::endl;
+//	std::cout << "areaSum is: " << areaSum << std::endl;
+//	std::cout << "RHS is: " << areaSum / t << std::endl;
 
 	// Calculate and store min lyapunov
 	lyapunovs[0] = (areaSum / t) - lyapunovs[1];
 }
 
 // Handles the timestep processes for calculating min and max lyapunov exponents: Might be broken
-void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double areaSum, double initialArea)
+void lyapunovChaosStuffSingle(Probe probe, int NUMPERTURBED, double RADIUS, double *LfSums, double *areaSum, double initialArea)
 {
 	// Max lyapunov
+	double maxMag = mag((vector3){probe.perturbed[0].pos.x - probe.pos.x, probe.perturbed[0].pos.y - probe.pos.y, probe.perturbed[0].pos.z - probe.pos.z});
 	for (int i = 0; i < NUMPERTURBED; ++i)
 	{
 		// Calculate Lf of each perturbation, and renormalize the position vector
 		vector3 v = {probe.perturbed[i].pos.x - probe.pos.x, probe.perturbed[i].pos.y - probe.pos.y, probe.perturbed[i].pos.z - probe.pos.z};
 		// RADIUS = 1.0
-		LfSums[i] += log(mag(v));
+		double dist = mag(v);
+		double logDist = log(dist);
+
+		// DEBUGGING
+		if (dist > maxMag) { maxMag = dist; }
+
+		LfSums[i] += logDist;
 		vector3 uv = unitVector(v);
-		probe.perturbed[i].pos = {uv.x + probe.pos.x, uv.y + probe.pos.y, uv.z + probe.pos.z};
+		probe.perturbed[i].pos = {probe.pos.x + uv.x, probe.pos.y + uv.y, probe.pos.z + uv.z};
 		// RADIUS > 1.0
-		// LfSums[i] += log(mag(v) / RADIUS);
-		// probe.perturbed[i].pos = {(uv.x + probe.pos.x) * RADIUS, (uv.y + probe.pos.y) * RADIUS, (uv.z + probe.pos.z) * RADIUS};
+//		 LfSums[i] += log(mag(v) / RADIUS);
+//		 probe.perturbed[i].pos = {(uv.x + probe.pos.x) * RADIUS, (uv.y + probe.pos.y) * RADIUS, (uv.z + probe.pos.z) * RADIUS};
 	}
+
+	// DEBUGGING MAX LYAPUNOV
+//	std::cout << std::endl << "For max lyapunov" << std::endl;
+//	std::cout << "Distance is: " << maxMag << std::endl;
+//	std::cout << "log distance is: " << log(maxMag) << std::endl;
+
 	// Min lyapunov
 	vector3 v1 = {probe.perturbed[NUMPERTURBED].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED].pos.z - probe.pos.z};
 	vector3 v2 = {probe.perturbed[NUMPERTURBED + 1].pos.x - probe.pos.x, probe.perturbed[NUMPERTURBED + 1].pos.y - probe.pos.y, probe.perturbed[NUMPERTURBED + 1].pos.z - probe.pos.z};
 	double magv1 = mag(v1); double magv2 = mag(v2); double a = angle(v1, v2);
 	// RADIUS = 1
-	areaSum += log(magv1 * magv2 * sin(a));
+	double logArea = log(magv1 * magv2 * sin(a));
+
+//	std::cout << "For min lyapunov" << std::endl;
+//	std::cout << "Areasum is " << *areaSum << std::endl;
+
+	(*areaSum) += logArea;
+
+//	std::cout << "Area of parallelogram is: " << magv1 * magv2 * sin(a) << std::endl;
+//	std::cout << "log area of parallelogram is: " << logArea << std::endl << std::endl;
+//	std::cout << "Areasum is now " << *areaSum << std::endl;
 	// RADIUS > 1
 	// areaSums += log(magv1 * magv2 * sin(a) / RADIUS);
 
 	// Reorthonormalize vectors
-//	gramSchmidtRenormalizationSingle(&probe, NUMPERTURBED, v1, v2, magv1, magv2);
+	gramSchmidtRenormalizationSingle(&probe, NUMPERTURBED, v1, v2, magv1, magv2);
 }
 
 // Gram schmidt Renormalization for single probe: Renormalizes vectors into two orthogonal unit vectors that preserve direction
@@ -161,9 +205,20 @@ void gramSchmidtRenormalizationSingle(Probe *probe, int NUMPERTURBED, vector3 v1
 	double v2Dotu1 = dotProd(v2, u1);
 	vector3 y2 = {v2.x - (v2Dotu1) * u1.x, v2.y - (v2Dotu1) * u1.y, v2.z - (v2Dotu1) * u1.z};
 	double magy2 = mag(y2);
+	vector3 u2 = {y2.x / magy2, y2.y / magy2, y2.z / magy2};
 	// u1 and u2 are new orthogonal unit vectors to assign to v1 and v2 of probe
+//	std::cout << std::endl << "GRAM SCHMIDT ORTHOGONALIZATION" << std::endl;
+//	std::cout << "Original vectors" << std::endl;
+//	std::cout << "v1: " << v1.x << " , " << v1.y << " , " << v1.z << std::endl;
+//	std::cout << "v2: " << v2.x << " , " << v2.y << " , " << v2.z << std::endl;
+//	std::cout << "Angle between vectors: " << angle(v1, v2) * (180.0) / M_PI << std::endl;
+//	std::cout << "Calculated Orthonormal vectors" << std::endl;
+//	std::cout << "u1: " << u1.x << " , " << u1.y << " , " << u1.z << std::endl;
+//	std::cout << "u2: " << u2.x << " , " << u2.y << " , " << u2.z << std::endl << std::endl;
+//	std::cout << "Angle between orthonormal vectors: " << angle(u1, u2) * (180.0) / M_PI << std::endl;
 	probe->perturbed[NUMPERTURBED].pos = {probe->pos.x + u1.x, probe->pos.y + u1.y, probe->pos.z + u1.z};
-	probe->perturbed[NUMPERTURBED + 1].pos = {probe->pos.x + (y2.x / magy2), probe->pos.y + (y2.y / magy2), probe->pos.z + (y2.z / magy2)};
+	probe->perturbed[NUMPERTURBED + 1].pos = {probe->pos.x + u2.x, probe->pos.y + u2.y, probe->pos.z + u2.z};
+
 }
 
 
